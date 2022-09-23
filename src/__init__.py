@@ -17,8 +17,20 @@ class _MyAPI(BundleAPI):
         from IPython import get_ipython
         shell = get_ipython()
         if shell is None:
-            return 
-        shell.push({"ui": chimerax})
+            return
+        
+        import numpy
+        
+        # register all the types
+        from . import _magicgui
+        
+        namespace = {
+            "ui": chimerax,
+            "np": numpy,
+            "VolumeData": _magicgui.VolumeData,
+        }
+        shell.push(namespace)
+        
 
     @staticmethod
     def get_class(class_name):

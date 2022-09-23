@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Sequence
 
 import numpy as np
 
@@ -11,11 +11,14 @@ if TYPE_CHECKING:
     from chimerax.core.session import Session
 
 class ChimeraX:
+    _session: Session | None = None
+
     def __init__(self, session):
-        self._session = session
+        self.__class__._session = session
     
     @property
     def session(self) -> Session:
+        """Get the ChimeraX session"""
         return self._session
     
     @property
@@ -23,6 +26,7 @@ class ChimeraX:
         return self.session.models.list()
     
     def log(self, text: str) -> None:
+        """Print a message to the ChimeraX log."""
         from chimerax.core.commands import run
         run(self.session, f"log html {text}")
         return None
@@ -31,7 +35,12 @@ class ChimeraX:
     def _main_window(self) -> QtW.QMainWindow:
         return self.session.ui.main_window
     
-    def add_dock_widget(self, widget: QtW.QWidget, name: str = ""):
+    def add_dock_widget(self, widget: QtW.QWidget, *, name: str = ""):
+        """Add a widget to the ChimeraX dock"""
+        if hasattr(widget, "native"):
+            name = name or getattr(widget, "name", None)
+            widget = widget.native
+            
         name = name or widget.objectName()
         dock = QtW.QDockWidget(name)
         dock.setWidget(widget)
@@ -43,8 +52,14 @@ class ChimeraX:
         data: np.ndarray,
         *,
         name: str | None = None,
+        scale: float | Sequence[float] = 1.,
     ):
         from chimerax.map_data import ArrayGridData
-        from chimerax.map import volume_from_grid_data
-        grid = ArrayGridData(data, name=name or "Volume")
-        return volume_from_grid_data(grid, self.session)
+        from ._utils import add_grid
+        name = name or "Volume"
+        if hasattr(scale, "__iter__"):
+            step = tuple(step)
+        else:
+            step = (scale, scale, scale)
+        grid = ArrayGridData(data, name=name, step=step)
+        return add_grid(grid, self.session)

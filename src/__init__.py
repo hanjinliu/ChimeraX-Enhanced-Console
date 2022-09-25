@@ -14,20 +14,30 @@ class _MyAPI(BundleAPI):
         
         from chimerax.core.commands import run
         run(session, "ui tool show Shell")
+        
+        from chimerax.map.volume_viewer import (
+            add_volume_opened_callback, add_volume_closed_callback
+        )
+        add_volume_opened_callback(session, chimerax.reset_choices)
+        add_volume_closed_callback(session, chimerax.reset_choices)
+        
         from IPython import get_ipython
         shell = get_ipython()
         if shell is None:
             return
         
-        import numpy
         
         # register all the types
         from . import _magicgui
         
+        # update namespace
+        import numpy
         namespace = {
             "ui": chimerax,
             "np": numpy,
+            "Volume": _magicgui.Volume,
             "VolumeData": _magicgui.VolumeData,
+            "VolumeDataTuple": _magicgui.VolumeDataTuple,
         }
         shell.push(namespace)
         

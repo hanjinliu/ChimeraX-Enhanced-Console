@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING, Sequence
-
+import weakref
 import numpy as np
 
 from qtpy import QtWidgets as QtW
@@ -12,9 +12,11 @@ if TYPE_CHECKING:
 
 class ChimeraX:
     _session: Session | None = None
-
+    _docked_widgets: weakref.WeakValueDictionary[str, QtW.QWidget]
+    
     def __init__(self, session):
         self.__class__._session = session
+        self._docked_widgets = weakref.WeakValueDictionary()
     
     @property
     def session(self) -> Session:
@@ -39,13 +41,21 @@ class ChimeraX:
         """Add a widget to the ChimeraX dock"""
         if hasattr(widget, "native"):
             name = name or getattr(widget, "name", None)
-            widget = widget.native
-            
-        name = name or widget.objectName()
+            qwidget = widget.native
+        else:
+            qwidget = widget
+            name = name or widget.objectName()
         dock = QtW.QDockWidget(name)
-        dock.setWidget(widget)
+        dock.setWidget(qwidget)
         self._main_window.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        self._docked_widgets[name] = widget
         return dock
+    
+    def reset_choices(self, *_) -> None:
+        for dock in self._docked_widgets.values():
+            if hasattr(dock, "reset_choices"):
+                dock.reset_choices()
+        return None
 
     def add_volume(
         self,
@@ -63,3 +73,8 @@ class ChimeraX:
             step = (scale, scale, scale)
         grid = ArrayGridData(data, name=name, step=step)
         return add_grid(grid, self.session)
+
+    def open(self, path: str, name: str | None = None):
+        from chimerax.map import open_map
+        open_map(self.session, path, name=name)
+        
